@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Explicit source paths for Tailwind v4 content detection */
+@source "../index.html";
+@source "./**/*.{js,ts,jsx,tsx}";
+
 /* Custom theme variables */
 @theme {
   --color-brand-50: #eef2ff;
