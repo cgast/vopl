@@ -78,7 +78,7 @@ export function Header() {
   }, [loadExampleProject]);
 
   return (
-    <header className="flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-md border-b border-gray-200/80 shadow-sm">
+    <header className="relative z-30 flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-md border-b border-gray-200/80 shadow-sm">
       {/* Left: Logo and project name */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2.5">
@@ -229,68 +229,99 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 function generateMarkdown(project: VOPLProject): string {
   let md = `# ${project.name}\n\n`;
 
-  // System Context
-  md += `## System Context\n\n`;
-  md += `### Environment\n${project.systemContext.environment || '(not specified)'}\n\n`;
-  md += `### Constraints\n${project.systemContext.constraints || '(not specified)'}\n\n`;
-  md += `### Infrastructure\n${project.systemContext.infrastructure || '(not specified)'}\n\n`;
-  md += `### External Dependencies\n${project.systemContext.dependencies || '(not specified)'}\n\n`;
-  md += `### Security Requirements\n${project.systemContext.security || '(not specified)'}\n\n`;
-  md += `### Non-Functional Requirements\n${project.systemContext.nonFunctional || '(not specified)'}\n\n`;
+  // System Context - only include sections with data
+  const hasSystemContext =
+    project.systemContext.environment ||
+    project.systemContext.constraints ||
+    project.systemContext.infrastructure ||
+    project.systemContext.dependencies ||
+    project.systemContext.security ||
+    project.systemContext.nonFunctional;
 
-  // Data Flow
-  md += `## Data Flow\n\n`;
-  project.edges.forEach((edge) => {
-    const source = project.nodes.find(n => n.id === edge.source);
-    const target = project.nodes.find(n => n.id === edge.target);
-    md += `- ${source?.data.name || edge.source} → ${target?.data.name || edge.target}${edge.label ? ` (${edge.label})` : ''}\n`;
-  });
-  md += `\n`;
-
-  // Nodes
-  md += `## Components\n\n`;
-  project.nodes.forEach((node) => {
-    md += `### ${node.data.name} (${node.type})\n\n`;
-    md += `**Intent:** ${node.data.intent || '(not specified)'}\n\n`;
-
-    if (node.data.inputs.length > 0) {
-      md += `**Inputs:**\n`;
-      node.data.inputs.forEach(i => {
-        md += `- \`${i.name}\`: ${i.description} (${i.shape || 'untyped'})\n`;
-      });
-      md += `\n`;
+  if (hasSystemContext) {
+    md += `## System Context\n\n`;
+    if (project.systemContext.environment) {
+      md += `### Environment\n${project.systemContext.environment}\n\n`;
     }
-
-    if (node.data.outputs.length > 0) {
-      md += `**Outputs:**\n`;
-      node.data.outputs.forEach(o => {
-        md += `- \`${o.name}\`: ${o.description} (${o.shape || 'untyped'})\n`;
-      });
-      md += `\n`;
+    if (project.systemContext.constraints) {
+      md += `### Constraints\n${project.systemContext.constraints}\n\n`;
     }
-
-    md += `**Behavior:**\n${node.data.behavior || '(not specified)'}\n\n`;
-
-    if (node.data.examples.length > 0) {
-      md += `**Examples:**\n\n`;
-      md += `| Input | Output | Notes |\n`;
-      md += `|-------|--------|-------|\n`;
-      node.data.examples.forEach(e => {
-        md += `| ${e.input} | ${e.output} | ${e.notes} |\n`;
-      });
-      md += `\n`;
+    if (project.systemContext.infrastructure) {
+      md += `### Infrastructure\n${project.systemContext.infrastructure}\n\n`;
     }
-
-    if (node.data.constraints.length > 0) {
-      md += `**Constraints:**\n`;
-      node.data.constraints.forEach(c => {
-        md += `- ${c}\n`;
-      });
-      md += `\n`;
+    if (project.systemContext.dependencies) {
+      md += `### External Dependencies\n${project.systemContext.dependencies}\n\n`;
     }
+    if (project.systemContext.security) {
+      md += `### Security Requirements\n${project.systemContext.security}\n\n`;
+    }
+    if (project.systemContext.nonFunctional) {
+      md += `### Non-Functional Requirements\n${project.systemContext.nonFunctional}\n\n`;
+    }
+  }
 
-    md += `---\n\n`;
-  });
+  // Data Flow - only include if there are edges
+  if (project.edges.length > 0) {
+    md += `## Data Flow\n\n`;
+    project.edges.forEach((edge) => {
+      const source = project.nodes.find(n => n.id === edge.source);
+      const target = project.nodes.find(n => n.id === edge.target);
+      md += `- ${source?.data.name || edge.source} → ${target?.data.name || edge.target}${edge.label ? ` (${edge.label})` : ''}\n`;
+    });
+    md += `\n`;
+  }
+
+  // Nodes - only include components with data
+  if (project.nodes.length > 0) {
+    md += `## Components\n\n`;
+    project.nodes.forEach((node) => {
+      md += `### ${node.data.name} (${node.type})\n\n`;
+
+      if (node.data.intent) {
+        md += `**Intent:** ${node.data.intent}\n\n`;
+      }
+
+      if (node.data.inputs.length > 0) {
+        md += `**Inputs:**\n`;
+        node.data.inputs.forEach(i => {
+          md += `- \`${i.name}\`: ${i.description} (${i.shape || 'untyped'})\n`;
+        });
+        md += `\n`;
+      }
+
+      if (node.data.outputs.length > 0) {
+        md += `**Outputs:**\n`;
+        node.data.outputs.forEach(o => {
+          md += `- \`${o.name}\`: ${o.description} (${o.shape || 'untyped'})\n`;
+        });
+        md += `\n`;
+      }
+
+      if (node.data.behavior) {
+        md += `**Behavior:**\n${node.data.behavior}\n\n`;
+      }
+
+      if (node.data.examples.length > 0) {
+        md += `**Examples:**\n\n`;
+        md += `| Input | Output | Notes |\n`;
+        md += `|-------|--------|-------|\n`;
+        node.data.examples.forEach(e => {
+          md += `| ${e.input} | ${e.output} | ${e.notes} |\n`;
+        });
+        md += `\n`;
+      }
+
+      if (node.data.constraints.length > 0) {
+        md += `**Constraints:**\n`;
+        node.data.constraints.forEach(c => {
+          md += `- ${c}\n`;
+        });
+        md += `\n`;
+      }
+
+      md += `---\n\n`;
+    });
+  }
 
   return md;
 }
