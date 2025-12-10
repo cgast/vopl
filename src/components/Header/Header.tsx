@@ -78,17 +78,17 @@ export function Header() {
   }, [loadExampleProject]);
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm">
+    <header className="flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-md border-b border-gray-200/80 shadow-sm">
       {/* Left: Logo and project name */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-lg shadow-purple-500/25">
             V
           </div>
-          <span className="font-semibold text-gray-900">VOPL</span>
+          <span className="font-bold text-gray-800 text-lg tracking-tight">VOPL</span>
         </div>
 
-        <span className="text-gray-300">|</span>
+        <div className="w-px h-6 bg-gray-200"></div>
 
         {isEditing ? (
           <input
@@ -97,7 +97,7 @@ export function Header() {
             onChange={(e) => setEditName(e.target.value)}
             onBlur={handleNameSubmit}
             onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
-            className="px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-1.5 border-2 border-indigo-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30 font-medium text-gray-800 bg-white"
             autoFocus
           />
         ) : (
@@ -106,7 +106,7 @@ export function Header() {
               setEditName(project.name);
               setIsEditing(true);
             }}
-            className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded"
+            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 px-3 py-1.5 rounded-lg transition-colors font-medium"
           >
             {project.name}
           </button>
@@ -114,10 +114,10 @@ export function Header() {
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <button
           onClick={toggleSystemContext}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 rounded-lg transition-colors font-medium"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -130,13 +130,13 @@ export function Header() {
         <div className="relative">
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 rounded-lg shadow-md shadow-indigo-500/25 transition-all font-medium"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Export
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
@@ -144,23 +144,26 @@ export function Header() {
           {showExportMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-200/80 z-20 py-1.5 dropdown-enter">
                 <button
                   onClick={handleExportJSON}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-3"
                 >
+                  <span className="text-lg">📄</span>
                   Export as JSON
                 </button>
                 <button
                   onClick={handleExportMarkdown}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-3"
                 >
+                  <span className="text-lg">📝</span>
                   Export as Markdown
                 </button>
                 <button
                   onClick={handleCopyPrompt}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-3"
                 >
+                  <span className="text-lg">🤖</span>
                   Copy as LLM Prompt
                 </button>
               </div>
@@ -172,7 +175,7 @@ export function Header() {
         <div className="relative">
           <button
             onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+            className="p-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 rounded-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -182,23 +185,26 @@ export function Header() {
           {showSettingsMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowSettingsMenu(false)} />
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-200/80 z-20 py-1.5 dropdown-enter">
                 <button
                   onClick={handleNewProject}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
                 >
+                  <span className="text-lg">✨</span>
                   New Project
                 </button>
                 <button
                   onClick={handleImport}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
                 >
+                  <span className="text-lg">📥</span>
                   Import Project
                 </button>
                 <button
                   onClick={handleLoadExample}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
                 >
+                  <span className="text-lg">📋</span>
                   Load Example
                 </button>
               </div>
