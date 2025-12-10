@@ -1,7 +1,23 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { VOPLProject, SpecScore, SpecIssue } from '../types/vopl';
+import type { VOPLProject, SpecScore, SpecIssue, PortDefinition, Example } from '../types/vopl';
 
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+export type AutogenFieldType = 'intent' | 'behavior' | 'inputs' | 'outputs' | 'examples' | 'constraints';
+
+export interface AutogenResult {
+  success: boolean;
+  field: AutogenFieldType;
+  value: string | PortDefinition[] | Example[] | string[];
+  error?: string;
+}
+
+export interface AutogenContext {
+  project: VOPLProject;
+  nodeId: string;
+  field: AutogenFieldType;
+  issueMessage: string;
+}
 
 function buildAnalysisPrompt(project: VOPLProject): string {
   const systemContextStr = `
@@ -303,4 +319,310 @@ function getMockScore(project: VOPLProject): SpecScore {
     suggestions,
     lastUpdated: Date.now(),
   };
+}
+
+function buildAutogenPrompt(context: AutogenContext): string {
+  const { project, nodeId, field, issueMessage } = context;
+  const node = project.nodes.find(n => n.id === nodeId);
+
+  if (!node) {
+    throw new Error(`Node ${nodeId} not found`);
+  }
+
+  const systemContextStr = `
+## System Context
+- Environment: ${project.systemContext.environment || '(not specified)'}
+- Constraints: ${project.systemContext.constraints || '(not specified)'}
+- Infrastructure: ${project.systemContext.infrastructure || '(not specified)'}
+- Dependencies: ${project.systemContext.dependencies || '(not specified)'}
+- Security: ${project.systemContext.security || '(not specified)'}
+- Non-Functional: ${project.systemContext.nonFunctional || '(not specified)'}
+`;
+
+  const connectedNodes = project.edges
+    .filter(e => e.source === nodeId || e.target === nodeId)
+    .map(e => {
+      const connectedId = e.source === nodeId ? e.target : e.source;
+      const connectedNode = project.nodes.find(n => n.id === connectedId);
+      const direction = e.source === nodeId ? 'outputs to' : 'receives from';
+      return connectedNode
+        ? `- ${direction} "${connectedNode.data.name}" (${connectedNode.type}): ${connectedNode.data.intent}`
+        : null;
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  const currentNodeStr = `
+## Current Node: "${node.data.name}" (${node.type})
+**Intent:** ${node.data.intent || '(empty)'}
+**Inputs:** ${node.data.inputs.length > 0 ? node.data.inputs.map(i => `${i.name}: ${i.shape || 'unknown'}`).join(', ') : '(none)'}
+**Outputs:** ${node.data.outputs.length > 0 ? node.data.outputs.map(o => `${o.name}: ${o.shape || 'unknown'}`).join(', ') : '(none)'}
+**Behavior:** ${node.data.behavior || '(empty)'}
+**Examples:** ${node.data.examples.length > 0 ? node.data.examples.map(e => `Input: ${e.input} → Output: ${e.output}`).join('; ') : '(none)'}
+**Constraints:** ${node.data.constraints.length > 0 ? node.data.constraints.join(', ') : '(none)'}
+
+**Connected to:**
+${connectedNodes || '(no connections)'}
+`;
+
+  const fieldInstructions: Record<AutogenFieldType, string> = {
+    intent: `Generate a clear, one-sentence intent description that explains the purpose of this node.
+Return JSON: { "value": "Your intent description here" }`,
+
+    behavior: `Generate a detailed behavior description in markdown format that explains:
+- What this node does step by step
+- How it handles different cases
+- Error handling approach
+Return JSON: { "value": "Your markdown behavior description" }`,
+
+    inputs: `Generate appropriate input port definitions based on what this node needs to receive.
+Return JSON: { "value": [{ "name": "portName", "description": "what this input receives", "shape": "TypeScript type notation" }] }`,
+
+    outputs: `Generate appropriate output port definitions based on what this node produces.
+Return JSON: { "value": [{ "name": "portName", "description": "what this output produces", "shape": "TypeScript type notation" }] }`,
+
+    examples: `Generate 2-3 concrete input/output examples that demonstrate this node's behavior.
+Include at least one happy path and one edge case or error scenario.
+Return JSON: { "value": [{ "input": "JSON input string", "output": "JSON output string", "notes": "scenario description" }] }`,
+
+    constraints: `Generate 2-3 technical constraints or requirements for this node.
+Focus on performance, security, or implementation constraints.
+Return JSON: { "value": ["constraint 1", "constraint 2"] }`,
+  };
+
+  return `You are helping complete a software specification. Generate the ${field} field for a node based on the context provided.
+
+${systemContextStr}
+
+${currentNodeStr}
+
+## Issue to Address
+${issueMessage}
+
+## Task
+${fieldInstructions[field]}
+
+Important:
+- Base your response on all available context (system context, node type, connected nodes)
+- Be specific and practical
+- Only return valid JSON, no markdown code blocks`;
+}
+
+export async function autogenField(context: AutogenContext): Promise<AutogenResult> {
+  const { field } = context;
+
+  if (!ANTHROPIC_API_KEY) {
+    return getMockAutogenResult(context);
+  }
+
+  try {
+    const client = new Anthropic({
+      apiKey: ANTHROPIC_API_KEY,
+      dangerouslyAllowBrowser: true,
+    });
+
+    const prompt = buildAutogenPrompt(context);
+
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    });
+
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response type');
+    }
+
+    const result = JSON.parse(content.text);
+
+    return {
+      success: true,
+      field,
+      value: result.value,
+    };
+  } catch (error) {
+    console.error('Autogen failed:', error);
+    return getMockAutogenResult(context);
+  }
+}
+
+function getMockAutogenResult(context: AutogenContext): AutogenResult {
+  const { project, nodeId, field } = context;
+  const node = project.nodes.find(n => n.id === nodeId);
+
+  if (!node) {
+    return {
+      success: false,
+      field,
+      value: '',
+      error: 'Node not found',
+    };
+  }
+
+  const nodeName = node.data.name;
+  const nodeType = node.type;
+
+  switch (field) {
+    case 'intent':
+      return {
+        success: true,
+        field,
+        value: `${nodeType === 'trigger' ? 'Handle incoming' : nodeType === 'process' ? 'Process and transform' : nodeType === 'integration' ? 'Integrate with external service to' : 'Produce output for'} ${nodeName.toLowerCase().replace(/^new\s+/i, '')} operations`,
+      };
+
+    case 'behavior':
+      return {
+        success: true,
+        field,
+        value: `## Overview\nThis ${nodeType} node handles ${nodeName.toLowerCase()} operations.\n\n## Steps\n1. Receive input data\n2. Validate the input format\n3. Process according to business rules\n4. Return the result or appropriate error\n\n## Error Handling\n- Return descriptive error messages\n- Log errors for debugging`,
+      };
+
+    case 'inputs':
+      return {
+        success: true,
+        field,
+        value: node.data.inputs.length > 0
+          ? node.data.inputs.map(i => ({
+              ...i,
+              shape: i.shape === 'unknown' ? '{ data: unknown }' : i.shape,
+              description: i.description || `Input data for ${i.name}`,
+            }))
+          : [{ name: 'input', description: 'Primary input data', shape: '{ data: unknown }' }],
+      };
+
+    case 'outputs':
+      return {
+        success: true,
+        field,
+        value: node.data.outputs.length > 0
+          ? node.data.outputs.map(o => ({
+              ...o,
+              shape: o.shape === 'unknown' ? '{ result: unknown }' : o.shape,
+              description: o.description || `Output data from ${o.name}`,
+            }))
+          : [{ name: 'output', description: 'Primary output data', shape: '{ result: unknown }' }],
+      };
+
+    case 'examples':
+      return {
+        success: true,
+        field,
+        value: [
+          { input: '{ "data": "example input" }', output: '{ "result": "processed output" }', notes: 'Happy path scenario' },
+          { input: '{ "data": null }', output: '{ "error": "Invalid input" }', notes: 'Error handling example' },
+        ],
+      };
+
+    case 'constraints':
+      return {
+        success: true,
+        field,
+        value: [
+          'Must complete within reasonable time limits',
+          'Should handle invalid input gracefully',
+          'Must maintain data consistency',
+        ],
+      };
+
+    default:
+      return {
+        success: false,
+        field,
+        value: '',
+        error: `Unknown field: ${field}`,
+      };
+  }
+}
+
+// Helper to determine field from issue message
+export function inferFieldFromIssue(issue: SpecIssue): AutogenFieldType | null {
+  const message = issue.message.toLowerCase();
+
+  // Check explicit field first
+  if (issue.field) {
+    const fieldMap: Record<string, AutogenFieldType> = {
+      intent: 'intent',
+      behavior: 'behavior',
+      inputs: 'inputs',
+      outputs: 'outputs',
+      examples: 'examples',
+      constraints: 'constraints',
+    };
+    return fieldMap[issue.field] || null;
+  }
+
+  // Infer from message content
+  if (message.includes('intent') || message.includes('purpose')) {
+    return 'intent';
+  }
+  if (message.includes('behavior') || message.includes('description') || message.includes('describe')) {
+    return 'behavior';
+  }
+  if (message.includes('input') && !message.includes('output')) {
+    return 'inputs';
+  }
+  if (message.includes('output') && !message.includes('input')) {
+    return 'outputs';
+  }
+  if (message.includes('example') || message.includes('edge case')) {
+    return 'examples';
+  }
+  if (message.includes('constraint') || message.includes('requirement') || message.includes('limit')) {
+    return 'constraints';
+  }
+
+  // Default based on dimension
+  if (issue.dimension === 'completeness') {
+    return 'behavior';
+  }
+  if (issue.dimension === 'ambiguity') {
+    return 'intent';
+  }
+
+  return null;
+}
+
+// Helper to determine the best field to autogen for a suggestion
+export function inferFieldFromSuggestion(suggestion: string, project: VOPLProject): { field: AutogenFieldType; nodeId: string } | null {
+  const suggestionLower = suggestion.toLowerCase();
+
+  // Try to find a node mentioned in the suggestion
+  let targetNode = project.nodes[0]; // Default to first node
+  for (const node of project.nodes) {
+    if (suggestion.includes(node.data.name)) {
+      targetNode = node;
+      break;
+    }
+  }
+
+  if (!targetNode) return null;
+
+  // Infer field from suggestion content
+  if (suggestionLower.includes('behavior') || suggestionLower.includes('description') || suggestionLower.includes('error handling')) {
+    return { field: 'behavior', nodeId: targetNode.id };
+  }
+  if (suggestionLower.includes('example') || suggestionLower.includes('edge case')) {
+    return { field: 'examples', nodeId: targetNode.id };
+  }
+  if (suggestionLower.includes('type') || suggestionLower.includes('shape')) {
+    if (suggestionLower.includes('input')) {
+      return { field: 'inputs', nodeId: targetNode.id };
+    }
+    if (suggestionLower.includes('output')) {
+      return { field: 'outputs', nodeId: targetNode.id };
+    }
+    return { field: 'inputs', nodeId: targetNode.id };
+  }
+  if (suggestionLower.includes('constraint') || suggestionLower.includes('requirement')) {
+    return { field: 'constraints', nodeId: targetNode.id };
+  }
+
+  // Default to behavior for completeness
+  return { field: 'behavior', nodeId: targetNode.id };
 }

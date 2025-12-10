@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
-import { analyzeSpec } from '../../api/specAnalysis';
+import { analyzeSpec, autogenField, inferFieldFromIssue, inferFieldFromSuggestion } from '../../api/specAnalysis';
 import type { SpecIssue } from '../../types/vopl';
 
 export function SpecOMeter() {
-  const { project, isAnalyzing, setIsAnalyzing, setSpecScore, selectNode } = useProjectStore();
+  const { project, isAnalyzing, setIsAnalyzing, setSpecScore, selectNode, updateNode } = useProjectStore();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [autogenLoading, setAutogenLoading] = useState<Record<string, boolean>>({});
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastAnalyzedRef = useRef<string>('');
 
@@ -64,6 +65,75 @@ export function SpecOMeter() {
       selectNode(issue.nodeId);
     }
   }, [selectNode]);
+
+  const handleAutogenIssue = useCallback(async (issue: SpecIssue, index: number) => {
+    if (!issue.nodeId) return;
+
+    const field = inferFieldFromIssue(issue);
+    if (!field) return;
+
+    const loadingKey = `issue-${index}`;
+    setAutogenLoading(prev => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      const result = await autogenField({
+        project,
+        nodeId: issue.nodeId,
+        field,
+        issueMessage: issue.message,
+      });
+
+      if (result.success) {
+        // Apply the generated value to the node
+        const updateData: Record<string, unknown> = {};
+        updateData[field] = result.value;
+        updateNode(issue.nodeId, updateData);
+
+        // Select the node so user can see the change
+        selectNode(issue.nodeId);
+      }
+    } finally {
+      setAutogenLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  }, [project, updateNode, selectNode]);
+
+  const handleAutogenSuggestion = useCallback(async (suggestion: string, index: number) => {
+    const inferredTarget = inferFieldFromSuggestion(suggestion, project);
+    if (!inferredTarget) return;
+
+    const { field, nodeId } = inferredTarget;
+    const loadingKey = `suggestion-${index}`;
+    setAutogenLoading(prev => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      const result = await autogenField({
+        project,
+        nodeId,
+        field,
+        issueMessage: suggestion,
+      });
+
+      if (result.success) {
+        // Apply the generated value to the node
+        const updateData: Record<string, unknown> = {};
+        updateData[field] = result.value;
+        updateNode(nodeId, updateData);
+
+        // Select the node so user can see the change
+        selectNode(nodeId);
+      }
+    } finally {
+      setAutogenLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  }, [project, updateNode, selectNode]);
+
+  const canAutogenIssue = useCallback((issue: SpecIssue): boolean => {
+    return !!issue.nodeId && !!inferFieldFromIssue(issue);
+  }, []);
+
+  const canAutogenSuggestion = useCallback((suggestion: string): boolean => {
+    return project.nodes.length > 0 && !!inferFieldFromSuggestion(suggestion, project);
+  }, [project]);
 
   const score = project.specScore;
   const overallColor = getScoreColor(score?.overall ?? 0);
@@ -178,12 +248,11 @@ export function SpecOMeter() {
                   <div
                     key={index}
                     className={`
-                      flex items-start gap-2 p-2 rounded text-sm cursor-pointer
-                      ${issue.severity === 'error' ? 'bg-red-50 hover:bg-red-100' :
-                        issue.severity === 'warning' ? 'bg-yellow-50 hover:bg-yellow-100' :
-                        'bg-blue-50 hover:bg-blue-100'}
+                      flex items-start gap-2 p-2 rounded text-sm
+                      ${issue.severity === 'error' ? 'bg-red-50' :
+                        issue.severity === 'warning' ? 'bg-yellow-50' :
+                        'bg-blue-50'}
                     `}
-                    onClick={() => handleIssueClick(issue)}
                   >
                     <span className={`
                       w-2 h-2 rounded-full mt-1.5 flex-shrink-0
@@ -191,12 +260,52 @@ export function SpecOMeter() {
                         issue.severity === 'warning' ? 'bg-yellow-500' :
                         'bg-blue-500'}
                     `} />
-                    <div>
+                    <div
+                      className={`flex-1 cursor-pointer ${issue.severity === 'error' ? 'hover:bg-red-100' :
+                        issue.severity === 'warning' ? 'hover:bg-yellow-100' :
+                        'hover:bg-blue-100'} rounded px-1 -mx-1`}
+                      onClick={() => handleIssueClick(issue)}
+                    >
                       <span className="text-gray-900">{issue.message}</span>
                       {issue.nodeId && (
                         <span className="text-xs text-gray-500 ml-1">(click to navigate)</span>
                       )}
                     </div>
+                    {canAutogenIssue(issue) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAutogenIssue(issue, index);
+                        }}
+                        disabled={autogenLoading[`issue-${index}`]}
+                        className={`
+                          flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md
+                          transition-all duration-200 flex-shrink-0
+                          ${autogenLoading[`issue-${index}`]
+                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                            : 'bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:from-violet-600 hover:to-purple-600 shadow-sm hover:shadow-md'
+                          }
+                        `}
+                        title="Auto-generate fix for this issue"
+                      >
+                        {autogenLoading[`issue-${index}`] ? (
+                          <>
+                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            <span>Fix</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -209,9 +318,44 @@ export function SpecOMeter() {
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Suggestions</h4>
               <ul className="space-y-1 text-sm text-gray-600">
                 {score.suggestions.map((suggestion, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="text-green-500 mt-0.5">→</span>
-                    {suggestion}
+                  <li key={index} className="flex items-start gap-2 p-2 rounded bg-green-50/50 hover:bg-green-50">
+                    <span className="text-green-500 mt-0.5 flex-shrink-0">→</span>
+                    <span className="flex-1">{suggestion}</span>
+                    {canAutogenSuggestion(suggestion) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAutogenSuggestion(suggestion, index);
+                        }}
+                        disabled={autogenLoading[`suggestion-${index}`]}
+                        className={`
+                          flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md
+                          transition-all duration-200 flex-shrink-0
+                          ${autogenLoading[`suggestion-${index}`]
+                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                            : 'bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 shadow-sm hover:shadow-md'
+                          }
+                        `}
+                        title="Auto-generate this improvement"
+                      >
+                        {autogenLoading[`suggestion-${index}`] ? (
+                          <>
+                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                            </svg>
+                            <span>Generate</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
