@@ -41,21 +41,41 @@ export function NodeSpecPanel() {
     output: 'Output',
   };
 
+  const nodeTypeColors = {
+    trigger: 'from-amber-400 to-orange-500',
+    process: 'from-blue-400 to-indigo-500',
+    integration: 'from-purple-400 to-violet-500',
+    output: 'from-green-400 to-emerald-500',
+  };
+
+  const nodeTypeIcons = {
+    trigger: '⚡',
+    process: '✨',
+    integration: '🔌',
+    output: '📤',
+  };
+
   return (
-    <div className="w-[450px] h-full bg-white border-l border-gray-200 flex flex-col shadow-lg">
+    <div className="w-[420px] h-full bg-white/95 backdrop-blur-sm border-l border-gray-200/80 flex flex-col shadow-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-500">
-            {nodeTypeLabels[selectedNode.type]}
-          </span>
-          <span className="text-gray-300">|</span>
-          <span className="font-semibold text-gray-900">{selectedNode.data.name}</span>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${nodeTypeColors[selectedNode.type]} flex items-center justify-center shadow-md`}>
+            <span className="text-white text-base">
+              {nodeTypeIcons[selectedNode.type]}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">
+              {nodeTypeLabels[selectedNode.type]}
+            </span>
+            <span className="font-semibold text-gray-800 text-sm leading-tight">{selectedNode.data.name}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={handleDelete}
-            className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Delete node"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +84,7 @@ export function NodeSpecPanel() {
           </button>
           <button
             onClick={handleClose}
-            className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             title="Close panel"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,14 +95,14 @@ export function NodeSpecPanel() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
         {/* Name */}
         <Section title="Name">
           <input
             type="text"
             value={selectedNode.data.name}
             onChange={(e) => handleUpdate({ name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors bg-gray-50/50 hover:bg-white"
             placeholder="Component name"
           />
         </Section>
@@ -92,7 +112,7 @@ export function NodeSpecPanel() {
           <textarea
             value={selectedNode.data.intent}
             onChange={(e) => handleUpdate({ intent: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none transition-colors bg-gray-50/50 hover:bg-white"
             rows={2}
             placeholder="What is this component's purpose?"
           />
@@ -160,10 +180,10 @@ interface SectionProps {
 function Section({ title, description, children }: SectionProps) {
   return (
     <div>
-      <div className="mb-2">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
         {description && (
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{description}</p>
         )}
       </div>
       {children}
@@ -196,35 +216,35 @@ function PortList({ ports, onChange, portType }: PortListProps) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {ports.map((port, index) => (
-        <div key={index} className="flex gap-2 items-start p-2 bg-gray-50 rounded-md">
+        <div key={index} className="flex gap-2 items-start p-3 bg-gray-50/80 rounded-xl border border-gray-100">
           <div className="flex-1 space-y-2">
             <input
               type="text"
               value={port.name}
               onChange={(e) => updatePort(index, { name: e.target.value })}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
               placeholder="Port name"
             />
             <input
               type="text"
               value={port.description}
               onChange={(e) => updatePort(index, { description: e.target.value })}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
               placeholder="Description"
             />
             <input
               type="text"
               value={port.shape}
               onChange={(e) => updatePort(index, { shape: e.target.value })}
-              className="w-full px-2 py-1 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2.5 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
               placeholder="Type/shape (e.g., { id: string, name: string })"
             />
           </div>
           <button
             onClick={() => removePort(index)}
-            className="p-1 text-gray-400 hover:text-red-500"
+            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             title="Remove port"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,7 +255,7 @@ function PortList({ ports, onChange, portType }: PortListProps) {
       ))}
       <button
         onClick={addPort}
-        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium px-3 py-2 hover:bg-indigo-50 rounded-lg transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -267,33 +287,33 @@ function ExamplesTable({ examples, onChange }: ExamplesTableProps) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {examples.map((example, index) => (
-        <div key={index} className="p-2 bg-gray-50 rounded-md space-y-2">
+        <div key={index} className="p-3 bg-gray-50/80 rounded-xl border border-gray-100 space-y-2.5">
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500 block mb-1">Input</label>
+              <label className="text-xs text-gray-400 font-medium block mb-1.5">Input</label>
               <textarea
                 value={example.input}
                 onChange={(e) => updateExample(index, { input: e.target.value })}
-                className="w-full px-2 py-1 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 resize-none"
+                className="w-full px-2.5 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-400 resize-none bg-white"
                 rows={2}
                 placeholder='{ "key": "value" }'
               />
             </div>
             <div className="flex-1">
-              <label className="text-xs text-gray-500 block mb-1">Output</label>
+              <label className="text-xs text-gray-400 font-medium block mb-1.5">Output</label>
               <textarea
                 value={example.output}
                 onChange={(e) => updateExample(index, { output: e.target.value })}
-                className="w-full px-2 py-1 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 resize-none"
+                className="w-full px-2.5 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-400 resize-none bg-white"
                 rows={2}
                 placeholder='{ "result": "..." }'
               />
             </div>
             <button
               onClick={() => removeExample(index)}
-              className="p-1 text-gray-400 hover:text-red-500 self-start mt-5"
+              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors self-start mt-5"
               title="Remove example"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,12 +322,12 @@ function ExamplesTable({ examples, onChange }: ExamplesTableProps) {
             </button>
           </div>
           <div>
-            <label className="text-xs text-gray-500 block mb-1">Notes</label>
+            <label className="text-xs text-gray-400 font-medium block mb-1.5">Notes</label>
             <input
               type="text"
               value={example.notes}
               onChange={(e) => updateExample(index, { notes: e.target.value })}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
               placeholder="Happy path, edge case, error scenario..."
             />
           </div>
@@ -315,7 +335,7 @@ function ExamplesTable({ examples, onChange }: ExamplesTableProps) {
       ))}
       <button
         onClick={addExample}
-        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium px-3 py-2 hover:bg-indigo-50 rounded-lg transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -347,19 +367,19 @@ function ConstraintsList({ constraints, onChange }: ConstraintsListProps) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {constraints.map((constraint, index) => (
-        <div key={index} className="flex gap-2">
+        <div key={index} className="flex gap-2 items-center">
           <input
             type="text"
             value={constraint}
             onChange={(e) => updateConstraint(index, e.target.value)}
-            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-400 bg-gray-50/50 hover:bg-white transition-colors"
             placeholder="Technical constraint or requirement"
           />
           <button
             onClick={() => removeConstraint(index)}
-            className="p-1 text-gray-400 hover:text-red-500"
+            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             title="Remove constraint"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -370,7 +390,7 @@ function ConstraintsList({ constraints, onChange }: ConstraintsListProps) {
       ))}
       <button
         onClick={addConstraint}
-        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium px-3 py-2 hover:bg-indigo-50 rounded-lg transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
