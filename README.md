@@ -1,73 +1,134 @@
-# React + TypeScript + Vite
+# VOPL – Vibe-Oriented Programming Language Prototype
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A visual specification editor for intent-based programming, where you define *what* software should do rather than *how* to implement it.
 
-Currently, two official plugins are available:
+## The Idea
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This prototype explores a concept articulated by Stephen Ramsay in [If You're Going to Vibe Code, Why Not Do It in C?](https://stephenramsay.net/posts/vibe-coding.html): if AI is increasingly writing our code, perhaps we need new tools optimized for human-AI collaboration rather than human-compiler interaction.
 
-## React Compiler
+Traditional programming languages were designed for humans to express ideas to machines. But in the age of vibe coding, we're really expressing ideas to *another intelligence* that then writes the machine code. VOPL asks: what if we built tools specifically for that workflow?
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This prototype implements a **visual specification editor** where you:
 
-## Expanding the ESLint configuration
+1. Build a graph of components describing your system
+2. Specify each component's behavior in semi-structured markdown
+3. Receive real-time AI feedback on specification quality
+4. Refine until ambiguity approaches zero
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The hypothesis: at 100% spec quality, any LLM would produce identical implementations.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Core Features
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Graph Canvas
+A ReactFlow-based canvas for building system architecture visually. Four node types represent different concerns:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Trigger** – Entry points (HTTP endpoints, cron jobs, event listeners)
+- **Process** – Business logic, transformations, decisions
+- **Integration** – External services, databases, APIs
+- **Output** – Results, responses, side effects
+
+Nodes connect via edges that represent data flow, with support for conditional branching.
+
+### Node Specification Panel
+Each node contains a structured specification:
+
+- **Intent** – One sentence describing the node's purpose
+- **Inputs/Outputs** – Port definitions with types and descriptions
+- **Behavior** – Prose description of what the node does
+- **Examples** – Input/output pairs demonstrating expected behavior
+- **Constraints** – Technical limitations and requirements
+
+### System Context
+Global configuration for system-wide concerns: environment, infrastructure, dependencies, security requirements, and non-functional requirements.
+
+### Spec-o-Meter
+The core innovation – an AI-powered specification quality analyzer that scores your spec across four dimensions:
+
+| Dimension | What it measures |
+|-----------|------------------|
+| **Completeness** | Are all nodes specified? Do edges have defined data shapes? |
+| **Clarity** | Are descriptions precise? Could behavior be interpreted multiple ways? |
+| **Consistency** | Do connected nodes agree on data shapes? Are there contradictions? |
+| **Groundedness** | Are constraints realistic? Is the behavior implementable? |
+
+Clickable issues navigate directly to problematic nodes. Suggestions guide improvement.
+
+### Export Options
+- **JSON** – Full project state for saving/sharing
+- **Markdown** – Human-readable specification document
+- **LLM Prompt** – Ready-to-paste prompt for code generation
+
+## Quick Start
+
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173) and click "Load Example" to see a pre-built User Registration API specification.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Enable AI Analysis
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Create a `.env` file:
+
 ```
+VITE_ANTHROPIC_API_KEY=your-api-key-here
+```
+
+Without an API key, the Spec-o-Meter falls back to mock scoring.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | React 19 + TypeScript |
+| Graph Editor | ReactFlow v12 |
+| Styling | Tailwind CSS v4 |
+| State | Zustand with localStorage persistence |
+| AI | Anthropic Claude API |
+| Build | Vite |
+
+## Project Structure
+
+```
+src/
+├── components/
+│   ├── Canvas/           # ReactFlow canvas and custom node types
+│   ├── Panels/           # NodeSpecPanel, SystemContextPanel, SpecOMeter
+│   └── Header/           # Project controls and export
+├── stores/
+│   └── projectStore.ts   # Zustand store with persistence
+├── api/
+│   └── specAnalysis.ts   # Claude API integration
+└── types/
+    └── vopl.ts           # TypeScript interfaces
+```
+
+## Example Project
+
+The included example demonstrates a User Registration API:
+
+```
+[HTTP POST /register] → [Validate Input] → [Hash Password] → [Store User] → [Return Response]
+```
+
+Each node has partial specifications showing the intended format and level of detail.
+
+## Status
+
+This is an experimental prototype exploring the VOPL concept. It demonstrates the core loop – build, specify, analyze, refine – but is not production-ready.
+
+Current limitations:
+- Frontend-only API calls (would need backend proxy for production)
+- No collaborative editing
+- No version history
+- Limited to single-page workflows
+
+## Background Reading
+
+- [If You're Going to Vibe Code, Why Not Do It in C?](https://stephenramsay.net/posts/vibe-coding.html) – Stephen Ramsay's essay introducing the VOPL concept
+- [Structure and Interpretation of Computer Programs](https://web.mit.edu/6.001/6.037/sicp.pdf) – The source of "programs must be written for people to read"
+
+## License
+
+MIT
